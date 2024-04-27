@@ -13,7 +13,6 @@
 //work fine with rx (orange) = 4, tx (red) = 5
 #define WLED_PIN 48
 #define LED_COUNT 12
-
 Adafruit_NeoPixel strip(LED_COUNT, WLED_PIN, NEO_GRB + NEO_KHZ800);
 
 static const uint16_t screenWidth  = 240;
