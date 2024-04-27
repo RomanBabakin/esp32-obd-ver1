@@ -4,17 +4,22 @@
 #include <esp32_can.h> // the ESP32_OBD2 library depends on the https://github.com/collin80/esp32_can and https://github.com/collin80/can_common CAN libraries
 #include <esp32_obd2.h>
 #include <TFT_eSPI.h>
-#include "Free_Fonts.h"
+// #include "Free_Fonts.h"
 #include <lvgl.h>
 #include <ui.h>
+#include <Adafruit_NeoPixel.h>
 #define CAN_RX_PIN  4
 #define CAN_TX_PIN  5
 //work fine with rx (orange) = 4, tx (red) = 5
+#define WLED_PIN 48
+#define LED_COUNT 12
+
+Adafruit_NeoPixel strip(LED_COUNT, WLED_PIN, NEO_GRB + NEO_KHZ800);
+
 static const uint16_t screenWidth  = 240;
 static const uint16_t screenHeight = 280;
 static lv_disp_draw_buf_t draw_buf;
 static lv_color_t buf[ screenWidth * screenHeight / 10 ];
-
 
 TFT_eSPI tft = TFT_eSPI();
 TFT_eSprite spr = TFT_eSprite(&tft);
@@ -28,15 +33,17 @@ void my_print(const char * buf)
 }
 #endif
 
+const int button_1_Pin = 12;
+const int button_2_Pin = 13;
+const int redLedPin = 9;
+const int yellowLedPin = 11;
+const int greenLedPin = 10;
 
-const int buttonPin = 13;
-const int redLedPin = 25;
-const int yellowLedPin = 27;
-const int greenLedPin = 26;
-
-int buttonState = 0; 
+int button_1_State = 0;
+int button_2_State = 0; 
 int shiftLightState = 0; 
-byte lastButtonState = HIGH;
+byte lastbutton_1_State = HIGH;
+byte lastbutton_2_State = HIGH;
 
 int screenSelected = 1;
 
@@ -129,6 +136,25 @@ void obdRead () {
     obdParameter = 0;
   }; 
   obdParameter = obdParameter + 1;
+  Serial.print("OBD PID read");
+};
+
+void obdCanInit () {
+  strip.setPixelColor(0, 0, 0, 200);
+  strip.show();
+  CAN0.setCANPins((gpio_num_t)CAN_RX_PIN, (gpio_num_t)CAN_TX_PIN);
+  while (true) {
+    Serial.print(F("Attempting to connect to OBD2 CAN bus ... "));
+    if (!OBD2.begin()) {
+      Serial.println(F("failed!"));
+      delay(1000);
+    } else {
+      Serial.println(F("success"));
+      break;
+    }
+  }
+  strip.setPixelColor(0, 0, 255, 200);
+  strip.show();
 };
 
 
@@ -137,26 +163,20 @@ void obdRead () {
 void setup() {
   Serial.begin(115200);
   while (!Serial);
+  strip.begin(); 
+  strip.setBrightness(10);
+  strip.setPixelColor(0, 0, 255, 0);
+  strip.show();
 
   pinMode(redLedPin, OUTPUT);
   pinMode(yellowLedPin, OUTPUT);
   pinMode(greenLedPin, OUTPUT);
-  pinMode(buttonPin, INPUT_PULLUP);
+  pinMode(button_1_Pin, INPUT_PULLUP);
+  pinMode(button_2_Pin, INPUT_PULLUP);
 
   Serial.println(F("OBD2 data printer"));
 
-   tft.init();
-  // tft.fillScreen(TFT_BLACK);
-  // tft.setCursor(20, 20, 4);
-  // tft.setTextColor(TFT_WHITE);
-  // tft.println("STARTING");
-  // delay(1000);
-  // tft.fillScreen(TFT_BLACK);
-  // tft.setCursor(20, 20, 4);
-  // tft.setTextColor(TFT_WHITE);
-  // tft.println("LOADING");
-  // tft.setTextDatum(TL_DATUM); 
-
+  tft.init();
   //lvgl example
   String LVGL_Arduino = "Hello Arduino! ";
   LVGL_Arduino += String('V') + lv_version_major() + "." + lv_version_minor() + "." + lv_version_patch();
@@ -182,28 +202,17 @@ void setup() {
 
   ui_init();
 
-
-  CAN0.setCANPins((gpio_num_t)CAN_RX_PIN, (gpio_num_t)CAN_TX_PIN);
-  while (true) {
-    Serial.print(F("Attempting to connect to OBD2 CAN bus ... "));
-    if (!OBD2.begin()) {
-      Serial.println(F("failed!"));
-      delay(1000);
-    } else {
-      Serial.println(F("success"));
-      break;
-    }
   }
-}
+  //obdCanInit();
 //end setup
 
 void loop() {
 
-  buttonState = digitalRead(buttonPin);
-  if (buttonState != lastButtonState) {
-    lastButtonState = buttonState;
-    if (buttonState == LOW) {
-      Serial.println(F("Button click"));
+  button_1_State = digitalRead(button_1_Pin);
+  if (button_1_State != lastbutton_1_State) {
+    lastbutton_1_State = button_1_State;
+    if (button_1_State == LOW) {
+      Serial.println(F("Button 1 click"));
 
       if (screenSelected == 1) {
         screenSelected = 2;
@@ -215,39 +224,36 @@ void loop() {
         screenSelected = 1;
         lv_scr_load(ui_Screen1);
       }
+    }
+  } //end button 1 block
 
-      //bench test
-      // if (shiftLightState == 3) {
-      //   shiftLightState = 0;
-      // } else {
-      //   shiftLightState = shiftLightState + 1;
-      // }
-      // // Serial.println(shiftLightState);
-      // obdOilTemp = obdOilTemp +1;
-      // obdCoolantTemp = obdCoolantTemp +1;
-      // obdAirTemp = obdAirTemp +1;
-      // obdBoostBars = obdBoostBars +0.1;
-      // if (obdBoostBars == 1.3) {
-      //   obdBoostBars = 0;
-      // };
-      // displayedBoost = displayedBoost + 100;
-      // if (displayedBoost == 1300) {
-      //   displayedBoost = 0;
-      // };
-      // obdRPM = obdRPM + 80;
-      // lv_scr_load(ui_Screen3);
-      // tftPrintBoost();
-      // tftPrintCoolantTemp ();
-      // tftPrintOilTemp ();
-      // tftPrintAirTemp ();
-      // tftPrintRPM();
-      //bench test end
+
+  button_2_State = digitalRead(button_2_Pin);
+  if (button_2_State != lastbutton_2_State) {
+    lastbutton_2_State = button_2_State;
+    if (button_2_State == LOW) {
+      Serial.println(F("Button 2 click"));
+
+      // Serial.println(shiftLightState);
+      obdOilTemp = obdOilTemp +1;
+      obdCoolantTemp = obdCoolantTemp +1;
+      obdAirTemp = obdAirTemp +1;
+      obdBoostBars = obdBoostBars +0.1;
+      if (obdBoostBars == 1.3) {
+        obdBoostBars = 0;
+      };
+      displayedBoost = displayedBoost + 100;
+      if (displayedBoost == 1300) {
+        displayedBoost = 0;
+      };
+      obdRPM = obdRPM + 80;
+      // bench test end
 
     }
-  } //end button block
+  } //end button 1 block
 
 
-  obdRead(); //read one OBD PID  
+  //obdRead(); //read one OBD PID  
 
   
   if (screenSelected == 1) {
@@ -365,7 +371,7 @@ void tftPrintAirTemp () {
 
 void tftPrintBoost () {
   lv_label_set_text_fmt(ui_boost, "%1.2f", obdBoostBars);
-  Serial.println(obdBoostBars);
+  // Serial.println(obdBoostBars);
   lv_bar_set_value(ui_boostBar, displayedBoost, LV_ANIM_OFF);
 }
 
@@ -377,7 +383,7 @@ void tftPrintRPM () {
 
 
 
-//Вывести функцию тестирования на кнопку boot
+
 //Сделать частое обновление экрана и отдельно медленную функцию ОБД. Через 2 ядра и мультитаск.
 //на экране РПМ сделать анимацию арка
 //Буст - протестировать выдачу данных с обд
