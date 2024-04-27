@@ -10,7 +10,6 @@
 #define CAN_RX_PIN  4
 #define CAN_TX_PIN  5
 //work fine with rx (orange) = 4, tx (red) = 5
-
 static const uint16_t screenWidth  = 240;
 static const uint16_t screenHeight = 280;
 static lv_disp_draw_buf_t draw_buf;
