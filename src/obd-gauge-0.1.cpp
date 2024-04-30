@@ -37,6 +37,8 @@ const int button_2_Pin = 13;
 const int redLedPin = 9;
 const int yellowLedPin = 11;
 const int greenLedPin = 10;
+const int TONE_OUTPUT_PIN = 21;
+const int TONE_PWM_CHANNEL = 0;
 
 int button_1_State = 0;
 int button_2_State = 0; 
@@ -45,6 +47,9 @@ byte lastbutton_1_State = HIGH;
 byte lastbutton_2_State = HIGH;
 
 int screenSelected = 1;
+int buzzerStatus = 0;
+int buzzerStatus_prev = 0;
+int buzzerLoopCount = 0;
 
 int obdRPM = 800;
 int obdOilTemp = 82;
@@ -78,6 +83,8 @@ void tftPrintAirTemp ();
 void tftPrintRPM ();
 void tftPrintBoost();
 void processPid(int pid);
+
+TaskHandle_t Task1_buzzer;
 
 
 void my_disp_flush( lv_disp_drv_t *disp_drv, const lv_area_t *area, lv_color_t *color_p ) {
@@ -156,7 +163,80 @@ void obdCanInit () {
   strip.show();
 };
 
-
+void buzzerTask (void * parameter) {
+  for (;;) {
+  delay(10);
+  if (buzzerStatus == 0) {
+    delay(100);
+  } else if (buzzerStatus == 1) {
+    //coolant warn
+    if (buzzerStatus != buzzerStatus_prev) {
+      buzzerLoopCount = 0;
+      buzzerStatus_prev = buzzerStatus;
+    };
+    if (buzzerLoopCount <= 3) {
+      ledcWriteTone(TONE_PWM_CHANNEL, 1000);
+      delay(70);
+      ledcWrite(TONE_PWM_CHANNEL, 0);
+      delay(100);
+      buzzerLoopCount = buzzerLoopCount + 1;
+    } else {
+      delay(100);
+    };
+  } else if (buzzerStatus == 2) {
+    //oil warn
+   if (buzzerStatus != buzzerStatus_prev) {
+      buzzerLoopCount = 0;
+      buzzerStatus_prev = buzzerStatus;
+    };
+    if (buzzerLoopCount <= 3) {
+      ledcWriteTone(TONE_PWM_CHANNEL, 1900);
+      delay(70);
+      ledcWrite(TONE_PWM_CHANNEL, 0);
+      delay(100);
+      buzzerLoopCount = buzzerLoopCount + 1;
+    } else {
+      delay(100);
+    };
+  } else if (buzzerStatus == 3) {
+    //coolant alarm
+    buzzerLoopCount = 0;
+    buzzerStatus_prev = buzzerStatus;
+    ledcWriteTone(TONE_PWM_CHANNEL, 1000);
+    delay(100);
+    ledcWrite(TONE_PWM_CHANNEL, 0);
+    delay(100);
+    ledcWriteTone(TONE_PWM_CHANNEL, 1000);
+    delay(100);
+    ledcWrite(TONE_PWM_CHANNEL, 0);
+    delay(100);
+    ledcWriteTone(TONE_PWM_CHANNEL, 1000);
+    delay(100);
+    ledcWrite(TONE_PWM_CHANNEL, 0);
+    delay(1000);
+  } else if (buzzerStatus == 4) {
+    //oil alarm
+    buzzerLoopCount = 0;
+    buzzerStatus_prev = buzzerStatus;
+    ledcWriteTone(TONE_PWM_CHANNEL, 1900);
+    delay(100);
+    ledcWrite(TONE_PWM_CHANNEL, 0);
+    delay(100);
+    ledcWriteTone(TONE_PWM_CHANNEL, 1900);
+    delay(100);
+    ledcWrite(TONE_PWM_CHANNEL, 0);
+    delay(100);
+    ledcWriteTone(TONE_PWM_CHANNEL, 1900);
+    delay(100);
+    ledcWrite(TONE_PWM_CHANNEL, 0);
+    delay(1000);
+  };
+  // ledcWriteTone(TONE_PWM_CHANNEL, 1000);
+  // delay(100);    
+  // ledcWrite(TONE_PWM_CHANNEL, 0);
+  // delay(500);
+  } //end loop
+}; //end buzzer task
 
 
 void setup() {
@@ -172,6 +252,8 @@ void setup() {
   pinMode(greenLedPin, OUTPUT);
   pinMode(button_1_Pin, INPUT_PULLUP);
   pinMode(button_2_Pin, INPUT_PULLUP);
+
+  ledcAttachPin(TONE_OUTPUT_PIN, TONE_PWM_CHANNEL);
 
   Serial.println(F("OBD2 data printer"));
 
@@ -198,11 +280,15 @@ void setup() {
   lv_label_set_text( label, "Hello Ardino and LVGL!");
   lv_obj_align( label, LV_ALIGN_CENTER, 0, 0 );
   //lvgl example end
-
   ui_init();
 
-  }
-  //obdCanInit();
+  // EasyBuzzer.setPin(buzzerPin);
+
+  xTaskCreatePinnedToCore(buzzerTask, "Buzzer Task",    8000,      NULL,    2,    &Task1_buzzer,    0);
+
+
+  // obdCanInit();
+};
 //end setup
 
 void loop() {
@@ -234,7 +320,9 @@ void loop() {
       Serial.println(F("Button 2 click"));
 
       // Serial.println(shiftLightState);
+      if (obdOilTemp == 135) {obdOilTemp = 98;};
       obdOilTemp = obdOilTemp +1;
+      if (obdCoolantTemp == 135) {obdCoolantTemp= 105;};
       obdCoolantTemp = obdCoolantTemp +1;
       obdAirTemp = obdAirTemp +1;
       obdBoostBars = obdBoostBars +0.1;
@@ -252,12 +340,24 @@ void loop() {
   } //end button 1 block
 
 
-  //obdRead(); //read one OBD PID  
+  // obdRead(); //read one OBD PID  
 
   
   if (screenSelected == 1) {
+    if (obdCoolantTemp != obdCoolantTemp_prev) {
+      
+      obdCoolantTemp_prev = obdCoolantTemp;
+    };
     tftPrintCoolantTemp();
+    if (obdOilTemp != obdOilTemp_prev) {
+      
+      obdOilTemp_prev = obdOilTemp;
+    }
     tftPrintOilTemp();
+    if (obdAirTemp != obdAirTemp_prev) {
+      
+      obdAirTemp_prev = obdAirTemp;
+    }
     tftPrintAirTemp();
   } else if (screenSelected == 2) {
     tftPrintBoost();
@@ -300,33 +400,39 @@ void loop() {
   
 
   lv_timer_handler(); /* let the GUI do its work */
+  // EasyBuzzer.update();
   
   // delay(300);
   
   // Serial.println("Loop finished");
 
   
-}
+};
 //end loop
 
 
 
 void tftPrintCoolantTemp () {
-    if (obdCoolantTemp < 100) {
+    if (obdCoolantTemp < 115) {
+      if (buzzerStatus == 3) {buzzerStatus = 0;};
       lv_obj_clear_state(ui_coolantTemp, LV_STATE_USER_2);
       lv_obj_clear_state(ui_coolantLabel, LV_STATE_USER_2);
       lv_obj_clear_state(ui_coolantRed, LV_STATE_USER_2);
       lv_obj_clear_state(ui_coolantTemp, LV_STATE_USER_3);
       lv_obj_clear_state(ui_coolantLabel, LV_STATE_USER_3);
       lv_obj_clear_state(ui_coolantRed, LV_STATE_USER_3);
-    } else if (100 <= obdCoolantTemp && obdCoolantTemp  < 115) {
+    } else if (115 <= obdCoolantTemp && obdCoolantTemp  < 130) {
+      if (buzzerStatus == 0) {buzzerStatus = 1;};
+      // if (buzzerStatus == 2) {buzzerStatus = 1;};
+      if (buzzerStatus == 3) {buzzerStatus = 0;};
       lv_obj_add_state(ui_coolantTemp, LV_STATE_USER_2);
       lv_obj_add_state(ui_coolantLabel, LV_STATE_USER_2);
       lv_obj_add_state(ui_coolantRed, LV_STATE_USER_2);
       lv_obj_clear_state(ui_coolantTemp, LV_STATE_USER_3);
       lv_obj_clear_state(ui_coolantLabel, LV_STATE_USER_3);
       lv_obj_clear_state(ui_coolantRed, LV_STATE_USER_3);
-    } else if (115 <= obdCoolantTemp) {
+    } else if (130 <= obdCoolantTemp) {
+      if (buzzerStatus != 4) {buzzerStatus = 3;};
       lv_obj_add_state(ui_coolantTemp, LV_STATE_USER_3);
       lv_obj_add_state(ui_coolantLabel, LV_STATE_USER_3);
       lv_obj_add_state(ui_coolantRed, LV_STATE_USER_3);
@@ -335,21 +441,26 @@ void tftPrintCoolantTemp () {
 }
 
 void tftPrintOilTemp () {
-    if (obdOilTemp < 100) {
+    if (obdOilTemp < 110) {
+      if (buzzerStatus == 4) {buzzerStatus = 0;};
       lv_obj_clear_state(ui_oilTemp, LV_STATE_USER_2);
       lv_obj_clear_state(ui_oilLabel, LV_STATE_USER_2);
       lv_obj_clear_state(ui_oilRed, LV_STATE_USER_2);
       lv_obj_clear_state(ui_oilTemp, LV_STATE_USER_3);
       lv_obj_clear_state(ui_oilLabel, LV_STATE_USER_3);
       lv_obj_clear_state(ui_oilRed, LV_STATE_USER_3);
-    } else if (100 <= obdOilTemp && obdOilTemp  < 110) {
+    } else if (110 <= obdOilTemp && obdOilTemp  < 120) {
+      if (buzzerStatus == 0) {buzzerStatus = 2;};
+      if (buzzerStatus == 1) {buzzerStatus = 2;};
+      if (buzzerStatus == 4) {buzzerStatus = 0;};
       lv_obj_add_state(ui_oilTemp, LV_STATE_USER_2);
       lv_obj_add_state(ui_oilLabel, LV_STATE_USER_2);
       lv_obj_add_state(ui_oilRed, LV_STATE_USER_2);
       lv_obj_clear_state(ui_oilTemp, LV_STATE_USER_3);
       lv_obj_clear_state(ui_oilLabel, LV_STATE_USER_3);
       lv_obj_clear_state(ui_oilRed, LV_STATE_USER_3);
-    } else if (110 <= obdOilTemp) {
+    } else if (120 <= obdOilTemp) {
+      buzzerStatus = 4;
       lv_obj_add_state(ui_oilTemp, LV_STATE_USER_3);
       lv_obj_add_state(ui_oilLabel, LV_STATE_USER_3);
       lv_obj_add_state(ui_oilRed, LV_STATE_USER_3);
