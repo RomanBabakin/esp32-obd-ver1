@@ -25,6 +25,7 @@ extern "C" {
 #include "ui_helpers.h"
 #include "ui_events.h"
 
+void arcAnim_Animation(lv_obj_t * TargetObject, int delay);
 // SCREEN: ui_Screen1
 void ui_Screen1_screen_init(void);
 extern lv_obj_t * ui_Screen1;
@@ -49,6 +50,13 @@ extern lv_obj_t * ui_Screen3;
 extern lv_obj_t * ui_rpmLabel;
 extern lv_obj_t * ui_rpmArc;
 extern lv_obj_t * ui_rpm;
+// SCREEN: ui_Screen4
+void ui_Screen4_screen_init(void);
+extern lv_obj_t * ui_Screen4;
+extern lv_obj_t * ui_accelX;
+extern lv_obj_t * ui_accelY;
+extern lv_obj_t * ui_circle1;
+extern lv_obj_t * ui_accelPointer;
 extern lv_obj_t * ui____initial_actions0;
 
 
@@ -56,7 +64,6 @@ extern lv_obj_t * ui____initial_actions0;
 
 
 LV_FONT_DECLARE(ui_font_Signal_30_Normal);
-LV_FONT_DECLARE(ui_font_Signal_70_bold);
 LV_FONT_DECLARE(ui_font_Signal_70_bold);
 
 

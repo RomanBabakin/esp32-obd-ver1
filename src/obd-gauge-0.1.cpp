@@ -8,6 +8,9 @@
 #include <lvgl.h>
 #include <ui.h>
 #include <Adafruit_NeoPixel.h>
+#include <Wire.h>
+#include <Adafruit_Sensor.h>
+#include <Adafruit_MPU6050.h>
 #define CAN_RX_PIN  4
 #define CAN_TX_PIN  5
 //work fine with rx (orange) = 4, tx (red) = 5
@@ -31,6 +34,11 @@ void my_print(const char * buf)
     Serial.flush();
 }
 #endif
+
+int sda_pin = 47; // I2C SDA
+int scl_pin = 45; // I2C SCL
+
+Adafruit_MPU6050 mpu;
 
 const int button_1_Pin = 12;
 const int button_2_Pin = 13;
@@ -75,6 +83,10 @@ int displayedBoost_prev = 700;
 
 int obdParameter = 1;
 
+double accelY = 0;
+double accelZ = 0;
+
+
 String textWrapper = "String";
 
 void tftPrintCoolantTemp ();
@@ -82,6 +94,7 @@ void tftPrintOilTemp ();
 void tftPrintAirTemp ();
 void tftPrintRPM ();
 void tftPrintBoost();
+void tftPrintAccel();
 void processPid(int pid);
 
 TaskHandle_t Task1_buzzer;
@@ -282,10 +295,20 @@ void setup() {
   //lvgl example end
   ui_init();
 
-  // EasyBuzzer.setPin(buzzerPin);
-
   xTaskCreatePinnedToCore(buzzerTask, "Buzzer Task",    8000,      NULL,    2,    &Task1_buzzer,    0);
 
+  Wire.setPins(sda_pin, scl_pin); // Set the I2C pins before begin
+  Wire.begin(); // join i2c bus (address optional for master)
+
+  if (!mpu.begin()) {
+    Serial.println("Failed to find MPU6050 chip");
+    while (1) {
+      delay(10);
+    }
+  }
+  Serial.println("MPU6050 Found!");
+  mpu.setAccelerometerRange(MPU6050_RANGE_2_G);
+  mpu.setFilterBandwidth(MPU6050_BAND_21_HZ);
 
   // obdCanInit();
 };
@@ -306,6 +329,9 @@ void loop() {
         screenSelected = 3;
         lv_scr_load(ui_Screen3);
       } else if (screenSelected == 3) {
+        screenSelected = 4;
+        lv_scr_load(ui_Screen4);
+      } else if (screenSelected == 4) {
         screenSelected = 1;
         lv_scr_load(ui_Screen1);
       }
@@ -342,6 +368,10 @@ void loop() {
 
   // obdRead(); //read one OBD PID  
 
+  sensors_event_t a, g, temp;
+  mpu.getEvent(&a, &g, &temp);
+  accelY = (a.acceleration.y+0.48)/9.8;
+  accelZ = (a.acceleration.z-0.94)/9.8;
   
   if (screenSelected == 1) {
     if (obdCoolantTemp != obdCoolantTemp_prev) {
@@ -363,6 +393,9 @@ void loop() {
     tftPrintBoost();
   } else if (screenSelected == 3) {
     tftPrintRPM();
+  } else if (screenSelected == 4) {
+    tftPrintAccel();
+    delay(100);
   };
   
 
@@ -397,10 +430,8 @@ void loop() {
   
   
 
-  
 
   lv_timer_handler(); /* let the GUI do its work */
-  // EasyBuzzer.update();
   
   // delay(300);
   
@@ -490,6 +521,12 @@ void tftPrintRPM () {
   lv_arc_set_value(ui_rpmArc, obdRPM);
 };
 
+void tftPrintAccel () {
+  lv_label_set_text_fmt(ui_accelX, "X: %1.1f G", accelY);
+  lv_label_set_text_fmt(ui_accelY, "Y: %1.1f G", accelZ);
+  lv_obj_set_x(ui_accelPointer, accelY*35);
+  lv_obj_set_y(ui_accelPointer, (accelZ*35)+180);
+}
 
 
 
