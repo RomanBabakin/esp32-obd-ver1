@@ -57,6 +57,11 @@ extern lv_obj_t * ui_accelX;
 extern lv_obj_t * ui_accelY;
 extern lv_obj_t * ui_circle1;
 extern lv_obj_t * ui_accelPointer;
+// SCREEN: ui_Screen5
+void ui_Screen5_screen_init(void);
+extern lv_obj_t * ui_Screen5;
+extern lv_obj_t * ui_gearBackground;
+extern lv_obj_t * ui_gearDisp;
 extern lv_obj_t * ui____initial_actions0;
 
 
@@ -65,6 +70,7 @@ extern lv_obj_t * ui____initial_actions0;
 
 LV_FONT_DECLARE(ui_font_Signal_30_Normal);
 LV_FONT_DECLARE(ui_font_Signal_70_bold);
+LV_FONT_DECLARE(ui_font_Signal_200_bold);
 
 
 

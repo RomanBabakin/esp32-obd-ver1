@@ -66,12 +66,16 @@ int obdAirTemp = 35;
 int obdBoost = 200; //kPa
 double obdBoostBars = 0.2; //to Bars
 int displayedBoost = 200; //from 0 to 1500
+int obdSpeed = 0;
+
+int  calculatedGear = 0;
 
 int obdRPM_tmp = 800;
 int obdOilTemp_tmp = 82;
 int obdCoolantTemp_tmp = 95; 
 int obdAirTemp_tmp = 35;
 int obdBoost_tmp = 200;
+int obdSpeed_tmp = 0;
 
 int obdOilTemp_prev = 82;
 int obdCoolantTemp_prev = 95; 
@@ -80,6 +84,7 @@ int obdRPM_prev = 400;
 int obdBoost_prev = 0.1;
 int obdBoostBars_prev = 0.1;
 int displayedBoost_prev = 700;
+int obdSpeed_prev = 0;
 
 int obdParameter = 1;
 
@@ -95,9 +100,11 @@ void tftPrintAirTemp ();
 void tftPrintRPM ();
 void tftPrintBoost();
 void tftPrintAccel();
+void tftPrintGear();
 void processPid(int pid);
 
 TaskHandle_t Task1_buzzer;
+TaskHandle_t Task2_obdReader;
 
 
 void my_disp_flush( lv_disp_drv_t *disp_drv, const lv_area_t *area, lv_color_t *color_p ) {
@@ -112,7 +119,7 @@ void my_disp_flush( lv_disp_drv_t *disp_drv, const lv_area_t *area, lv_color_t *
 
 //read from OBD2 and filter
 void obdRead () {
-  Serial.println(obdParameter);
+  //Serial.println(obdParameter);
   if (obdParameter == 1) {
     obdRPM_tmp = OBD2.pidRead(ENGINE_RPM);
     if (obdRPM_tmp < 10000) {obdRPM = obdRPM_tmp;};
@@ -121,12 +128,12 @@ void obdRead () {
     if (obdBoost_tmp < 500) {obdBoost = obdBoost_tmp;};
     obdBoostBars = (obdBoost/100)-1;
     displayedBoost= obdBoostBars*100;
-    Serial.print("obdBoost_tmp:");
-    Serial.println(obdBoost_tmp);
-    Serial.print("obdBoostBars:");
-    Serial.println(obdBoostBars);
-    Serial.print("displayedBoost:");
-    Serial.println(displayedBoost);
+    // Serial.print("obdBoost_tmp:");
+    // Serial.println(obdBoost_tmp);
+    // Serial.print("obdBoostBars:");
+    // Serial.println(obdBoostBars);
+    // Serial.print("displayedBoost:");
+    // Serial.println(displayedBoost);
   } else if (obdParameter == 3) {
     obdOilTemp_tmp = OBD2.pidRead(ENGINE_OIL_TEMPERATURE);
     if (obdOilTemp_tmp < 300) {obdOilTemp = obdOilTemp_tmp;};
@@ -157,6 +164,41 @@ void obdRead () {
   obdParameter = obdParameter + 1;
   Serial.print("OBD PID read");
 };
+
+void obdClioRead () {
+  if (obdParameter == 1) {
+    obdRPM_tmp = OBD2.pidRead(ENGINE_RPM);
+    if (obdRPM_tmp < 10000) {obdRPM = obdRPM_tmp;};
+  } else if (obdParameter == 2) {
+    obdCoolantTemp_tmp = OBD2.pidRead(ENGINE_COOLANT_TEMPERATURE);
+    if (obdCoolantTemp_tmp < 300) {obdCoolantTemp = obdCoolantTemp_tmp;};
+  } else if (obdParameter == 3) {
+    obdRPM_tmp = OBD2.pidRead(ENGINE_RPM);
+    if (obdRPM_tmp < 10000) {obdRPM = obdRPM_tmp;};
+  } else if (obdParameter == 4) {
+    obdSpeed_tmp = OBD2.pidRead(VEHICLE_SPEED);
+    if (obdSpeed_tmp < 300) {obdSpeed = obdSpeed_tmp;};
+  } else if (obdParameter == 5) {
+    obdRPM_tmp = OBD2.pidRead(ENGINE_RPM);
+    if (obdRPM_tmp < 10000) {obdRPM = obdRPM_tmp;};
+  } else if (obdParameter == 6) {
+    obdAirTemp_tmp = OBD2.pidRead(AIR_INTAKE_TEMPERATURE);
+    if (obdAirTemp_tmp < 300) {obdAirTemp = obdAirTemp_tmp;};
+    obdParameter = 0;
+  }
+  obdParameter = obdParameter + 1;
+}
+
+void obdClioRPMSpeedToSerial () {
+  obdRPM_tmp = OBD2.pidRead(ENGINE_RPM);
+  delay(30);
+  obdSpeed_tmp = OBD2.pidRead(VEHICLE_SPEED);
+  Serial.println("- - - - -");
+  Serial.print(obdRPM_tmp);
+  Serial.print(" / ");
+  Serial.println(obdSpeed_tmp);
+  delay(200);
+}
 
 void obdCanInit () {
   strip.setPixelColor(0, 0, 0, 200);
@@ -251,6 +293,15 @@ void buzzerTask (void * parameter) {
   } //end loop
 }; //end buzzer task
 
+void obdReaderTask (void * parameter) {
+  for (;;) {
+  delay(10);
+  //obdRead(); //read one OBD PID
+  //obdClioRead(); //read one OBD PID  
+  } //end loop
+}; //end OBD Reader task
+
+
 
 void setup() {
   Serial.begin(115200);
@@ -296,6 +347,7 @@ void setup() {
   ui_init();
 
   xTaskCreatePinnedToCore(buzzerTask, "Buzzer Task",    8000,      NULL,    2,    &Task1_buzzer,    0);
+  xTaskCreatePinnedToCore(obdReaderTask, "OBD Reader Task",    8000,      NULL,    2,    &Task2_obdReader,    0);
 
   Wire.setPins(sda_pin, scl_pin); // Set the I2C pins before begin
   Wire.begin(); // join i2c bus (address optional for master)
@@ -310,11 +362,14 @@ void setup() {
   mpu.setAccelerometerRange(MPU6050_RANGE_2_G);
   mpu.setFilterBandwidth(MPU6050_BAND_21_HZ);
 
-  // obdCanInit();
+  obdCanInit();
 };
 //end setup
 
 void loop() {
+
+  //obdClioRPMSpeedToSerial();
+  obdClioRead();
 
   button_1_State = digitalRead(button_1_Pin);
   if (button_1_State != lastbutton_1_State) {
@@ -332,6 +387,9 @@ void loop() {
         screenSelected = 4;
         lv_scr_load(ui_Screen4);
       } else if (screenSelected == 4) {
+        screenSelected = 5;
+        lv_scr_load(ui_Screen5);
+      } else if (screenSelected == 5) {
         screenSelected = 1;
         lv_scr_load(ui_Screen1);
       }
@@ -364,9 +422,7 @@ void loop() {
 
     }
   } //end button 1 block
-
-
-  // obdRead(); //read one OBD PID  
+ 
 
   sensors_event_t a, g, temp;
   mpu.getEvent(&a, &g, &temp);
@@ -396,17 +452,19 @@ void loop() {
   } else if (screenSelected == 4) {
     tftPrintAccel();
     delay(100);
+  } else if (screenSelected == 5) {
+    tftPrintGear();
   };
   
 
   //shiftlight
   if (obdRPM < 2000) {
     shiftLightState = 0;
-  } else if (2000 <= obdRPM && obdRPM < 2500) {
+  } else if (7000 <= obdRPM && obdRPM < 7500) {
     shiftLightState = 1;
-  } else if (2500 <= obdRPM && obdRPM < 3000) {
+  } else if (7500 <= obdRPM && obdRPM < 8000) {
     shiftLightState = 2;
-  } else if (3000 <= obdRPM && obdRPM < 5000) {
+  } else if (8000 <= obdRPM && obdRPM < 9000) {
     shiftLightState = 3;
   };
 
@@ -435,7 +493,7 @@ void loop() {
   
   // delay(300);
   
-  // Serial.println("Loop finished");
+   //Serial.println("Loop finished");
 
   
 };
@@ -528,6 +586,55 @@ void tftPrintAccel () {
   lv_obj_set_y(ui_accelPointer, (accelZ*35)+180);
 }
 
+void tftPrintGear () {
+  if (obdRPM < 1500) {
+    lv_obj_clear_state(ui_gearBackground, LV_STATE_USER_1);
+    lv_obj_clear_state(ui_gearBackground, LV_STATE_USER_2);
+    lv_obj_clear_state(ui_gearBackground, LV_STATE_USER_3);
+  } else if (1500 <= obdRPM && obdRPM < 7000) {
+    lv_obj_add_state(ui_gearBackground, LV_STATE_USER_1);
+    lv_obj_clear_state(ui_gearBackground, LV_STATE_USER_2);
+    lv_obj_clear_state(ui_gearBackground, LV_STATE_USER_3);
+  } else if (7000 <= obdRPM && obdRPM < 7500) {
+    lv_obj_clear_state(ui_gearBackground, LV_STATE_USER_1);
+    lv_obj_add_state(ui_gearBackground, LV_STATE_USER_2);
+    lv_obj_clear_state(ui_gearBackground, LV_STATE_USER_3);
+  } else if (7500 <= obdRPM && obdRPM < 9900) {
+    lv_obj_clear_state(ui_gearBackground, LV_STATE_USER_1);
+    lv_obj_clear_state(ui_gearBackground, LV_STATE_USER_2);
+    lv_obj_add_state(ui_gearBackground, LV_STATE_USER_3);
+  };
+  Serial.print(obdRPM);
+  Serial.print(" / ");
+  Serial.print(obdSpeed);
+  Serial.print(" / ");
+  if (obdSpeed != 0) {
+    Serial.print(obdRPM/obdSpeed);
+  } else {
+    Serial.print("zero");
+  };
+  
+  if (obdSpeed > 0) {
+    if (100 < (obdRPM/obdSpeed) && (obdRPM/obdSpeed) < 140) {
+      lv_label_set_text( ui_gearDisp, "1");
+    } else if (65 < (obdRPM/obdSpeed) && (obdRPM/obdSpeed) < 85) {
+      lv_label_set_text( ui_gearDisp, "2");
+    } else if (53 < (obdRPM/obdSpeed) && (obdRPM/obdSpeed) < 59) {
+      lv_label_set_text( ui_gearDisp, "3");
+    } else if (44 < (obdRPM/obdSpeed) && (obdRPM/obdSpeed) < 48) {
+      lv_label_set_text( ui_gearDisp, "4");
+    } else if (37 < (obdRPM/obdSpeed) && (obdRPM/obdSpeed) < 41) {
+      lv_label_set_text( ui_gearDisp, "5");
+    } else if (32 < (obdRPM/obdSpeed) && (obdRPM/obdSpeed) < 35) {
+      lv_label_set_text( ui_gearDisp, "6");
+    } else {
+      lv_label_set_text( ui_gearDisp, "N");
+      //Serial.println("else");
+    };
+  }
+  
+
+}
 
 
 

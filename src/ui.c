@@ -47,6 +47,13 @@ lv_obj_t * ui_accelX;
 lv_obj_t * ui_accelY;
 lv_obj_t * ui_circle1;
 lv_obj_t * ui_accelPointer;
+
+
+// SCREEN: ui_Screen5
+void ui_Screen5_screen_init(void);
+lv_obj_t * ui_Screen5;
+lv_obj_t * ui_gearBackground;
+lv_obj_t * ui_gearDisp;
 lv_obj_t * ui____initial_actions0;
 
 ///////////////////// TEST LVGL SETTINGS ////////////////////
@@ -77,6 +84,7 @@ void ui_init(void)
     ui_Screen2_screen_init();
     ui_Screen3_screen_init();
     ui_Screen4_screen_init();
+    ui_Screen5_screen_init();
     ui____initial_actions0 = lv_obj_create(NULL);
     lv_disp_load_scr(ui_Screen1);
 }
