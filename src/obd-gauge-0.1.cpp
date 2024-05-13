@@ -105,6 +105,8 @@ void processPid(int pid);
 
 TaskHandle_t Task1_buzzer;
 TaskHandle_t Task2_obdReader;
+TaskHandle_t Task3_brightness;
+
 
 
 void my_disp_flush( lv_disp_drv_t *disp_drv, const lv_area_t *area, lv_color_t *color_p ) {
@@ -301,11 +303,24 @@ void obdReaderTask (void * parameter) {
   } //end loop
 }; //end OBD Reader task
 
+void brightnessTask (void * parameter) {
+  for (;;) {
+  Serial.print("Brightness: ");
+  Serial.println(analogRead(1));
+  delay(5000);
+  } //end loop
+}; //end Brightness Task
+
+
+
 
 
 void setup() {
+  pinMode(14, OUTPUT);
+  digitalWrite(14, LOW);
   Serial.begin(115200);
-  while (!Serial);
+  //while (!Serial);
+  
   strip.begin(); 
   strip.setBrightness(10);
   strip.setPixelColor(0, 0, 255, 0);
@@ -322,6 +337,7 @@ void setup() {
   Serial.println(F("OBD2 data printer"));
 
   tft.init();
+  digitalWrite(TFT_BL, LOW);
   //lvgl example
   String LVGL_Arduino = "Hello Arduino! ";
   LVGL_Arduino += String('V') + lv_version_major() + "." + lv_version_minor() + "." + lv_version_patch();
@@ -348,6 +364,7 @@ void setup() {
 
   xTaskCreatePinnedToCore(buzzerTask, "Buzzer Task",    8000,      NULL,    2,    &Task1_buzzer,    0);
   xTaskCreatePinnedToCore(obdReaderTask, "OBD Reader Task",    8000,      NULL,    2,    &Task2_obdReader,    0);
+  xTaskCreatePinnedToCore(brightnessTask, "Brightness Task",    8000,      NULL,    2,    &Task3_brightness,    1);
 
   Wire.setPins(sda_pin, scl_pin); // Set the I2C pins before begin
   Wire.begin(); // join i2c bus (address optional for master)
@@ -362,21 +379,20 @@ void setup() {
   mpu.setAccelerometerRange(MPU6050_RANGE_2_G);
   mpu.setFilterBandwidth(MPU6050_BAND_21_HZ);
 
-  obdCanInit();
+  //obdCanInit();
 };
 //end setup
 
 void loop() {
-
   //obdClioRPMSpeedToSerial();
-  obdClioRead();
+  //obdClioRead();
 
   button_1_State = digitalRead(button_1_Pin);
   if (button_1_State != lastbutton_1_State) {
     lastbutton_1_State = button_1_State;
     if (button_1_State == LOW) {
       Serial.println(F("Button 1 click"));
-
+      digitalWrite(TFT_BL, HIGH);
       if (screenSelected == 1) {
         screenSelected = 2;
         lv_scr_load(ui_Screen2);
@@ -604,15 +620,15 @@ void tftPrintGear () {
     lv_obj_clear_state(ui_gearBackground, LV_STATE_USER_2);
     lv_obj_add_state(ui_gearBackground, LV_STATE_USER_3);
   };
-  Serial.print(obdRPM);
-  Serial.print(" / ");
-  Serial.print(obdSpeed);
-  Serial.print(" / ");
-  if (obdSpeed != 0) {
-    Serial.print(obdRPM/obdSpeed);
-  } else {
-    Serial.print("zero");
-  };
+  // Serial.print(obdRPM);
+  // Serial.print(" / ");
+  // Serial.print(obdSpeed);
+  // Serial.print(" / ");
+  // if (obdSpeed != 0) {
+  //   Serial.print(obdRPM/obdSpeed);
+  // } else {
+  //   Serial.print("zero");
+  // };
   
   if (obdSpeed > 0) {
     if (100 < (obdRPM/obdSpeed) && (obdRPM/obdSpeed) < 140) {
@@ -638,6 +654,10 @@ void tftPrintGear () {
 
 
 
-//Сделать частое обновление экрана и отдельно медленную функцию ОБД. Через 2 ядра и мультитаск.
+//Вынести считывание обд в отдельную таску
+//Протестировать ускоренное считывание ОБД
+//Починить запуск без консоли
 //на экране РПМ сделать анимацию арка
 //Буст - протестировать выдачу данных с обд
+
+//Вывод данных в Рейсхроно по BLE
