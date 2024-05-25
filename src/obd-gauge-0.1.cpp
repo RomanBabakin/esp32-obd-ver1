@@ -384,8 +384,6 @@ void setup() {
 //end setup
 
 void loop() {
-  //obdClioRPMSpeedToSerial();
-  //obdClioRead();
 
   button_1_State = digitalRead(button_1_Pin);
   if (button_1_State != lastbutton_1_State) {
