@@ -19,7 +19,7 @@
 Adafruit_NeoPixel strip(LED_COUNT, WLED_PIN, NEO_GRB + NEO_KHZ800);
 
 static const uint16_t screenWidth  = 240;
-static const uint16_t screenHeight = 280;
+static const uint16_t screenHeight = 320;
 static lv_disp_draw_buf_t draw_buf;
 static lv_color_t buf[ screenWidth * screenHeight / 10 ];
 
@@ -355,11 +355,13 @@ void setup() {
   disp_drv.ver_res = screenHeight;
   disp_drv.flush_cb = my_disp_flush;
   disp_drv.draw_buf = &draw_buf;
+  disp_drv.sw_rotate = 1;
   lv_disp_drv_register( &disp_drv );
   lv_obj_t *label = lv_label_create( lv_scr_act() );
   lv_label_set_text( label, "Hello Ardino and LVGL!");
   lv_obj_align( label, LV_ALIGN_CENTER, 0, 0 );
   //lvgl example end
+  lv_disp_set_rotation(NULL, LV_DISP_ROT_90);
   ui_init();
 
   xTaskCreatePinnedToCore(buzzerTask, "Buzzer Task",    8000,      NULL,    2,    &Task1_buzzer,    0);
@@ -379,6 +381,8 @@ void setup() {
   mpu.setAccelerometerRange(MPU6050_RANGE_2_G);
   mpu.setFilterBandwidth(MPU6050_BAND_21_HZ);
 
+  delay(500);
+  digitalWrite(TFT_BL, HIGH);
   //obdCanInit();
 };
 //end setup
@@ -390,7 +394,6 @@ void loop() {
     lastbutton_1_State = button_1_State;
     if (button_1_State == LOW) {
       Serial.println(F("Button 1 click"));
-      digitalWrite(TFT_BL, HIGH);
       if (screenSelected == 1) {
         screenSelected = 2;
         lv_scr_load(ui_Screen2);
@@ -398,12 +401,6 @@ void loop() {
         screenSelected = 3;
         lv_scr_load(ui_Screen3);
       } else if (screenSelected == 3) {
-        screenSelected = 4;
-        lv_scr_load(ui_Screen4);
-      } else if (screenSelected == 4) {
-        screenSelected = 5;
-        lv_scr_load(ui_Screen5);
-      } else if (screenSelected == 5) {
         screenSelected = 1;
         lv_scr_load(ui_Screen1);
       }
@@ -444,29 +441,15 @@ void loop() {
   accelZ = (a.acceleration.z-0.94)/9.8;
   
   if (screenSelected == 1) {
-    if (obdCoolantTemp != obdCoolantTemp_prev) {
-      
-      obdCoolantTemp_prev = obdCoolantTemp;
-    };
     tftPrintCoolantTemp();
-    if (obdOilTemp != obdOilTemp_prev) {
-      
-      obdOilTemp_prev = obdOilTemp;
-    }
     tftPrintOilTemp();
-    if (obdAirTemp != obdAirTemp_prev) {
-      
-      obdAirTemp_prev = obdAirTemp;
-    }
     tftPrintAirTemp();
-  } else if (screenSelected == 2) {
     tftPrintBoost();
-  } else if (screenSelected == 3) {
     tftPrintRPM();
-  } else if (screenSelected == 4) {
+  } else if (screenSelected == 2) {
     tftPrintAccel();
     delay(100);
-  } else if (screenSelected == 5) {
+  } else if (screenSelected == 3) {
     tftPrintGear();
   };
   
@@ -590,14 +573,14 @@ void tftPrintBoost () {
 
 void tftPrintRPM () {
   lv_label_set_text_fmt(ui_rpm, "%d", obdRPM);
-  lv_arc_set_value(ui_rpmArc, obdRPM);
+  //lv_arc_set_value(ui_rpmArc, obdRPM);
 };
 
 void tftPrintAccel () {
-  lv_label_set_text_fmt(ui_accelX, "X: %1.1f G", accelY);
-  lv_label_set_text_fmt(ui_accelY, "Y: %1.1f G", accelZ);
-  lv_obj_set_x(ui_accelPointer, accelY*35);
-  lv_obj_set_y(ui_accelPointer, (accelZ*35)+180);
+  lv_label_set_text_fmt(ui_accelX, "%1.1f G", accelY);
+  lv_label_set_text_fmt(ui_accelY, "%1.1f G", accelZ);
+  lv_obj_set_x(ui_accelPointer, (accelY*35)+50);
+  lv_obj_set_y(ui_accelPointer, (accelZ*35)+0);
 }
 
 void tftPrintGear () {
