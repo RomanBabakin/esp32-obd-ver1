@@ -1,6 +1,7 @@
 // Copyright (c) Sandeep Mistry. All rights reserved.
 // Licensed under the MIT license. See LICENSE file in the project root for full license information.
 #include <Arduino.h>
+#include <can_common.h>
 #include <esp32_can.h> // the ESP32_OBD2 library depends on the https://github.com/collin80/esp32_can and https://github.com/collin80/can_common CAN libraries
 #include <esp32_obd2.h>
 #include <TFT_eSPI.h>
@@ -164,7 +165,7 @@ void obdRead () {
     obdParameter = 0;
   }; 
   obdParameter = obdParameter + 1;
-  Serial.print("OBD PID read");
+  //Serial.print("OBD PID read");
 };
 
 void obdClioRead () {
@@ -206,6 +207,7 @@ void obdCanInit () {
   strip.setPixelColor(0, 0, 0, 200);
   strip.show();
   CAN0.setCANPins((gpio_num_t)CAN_RX_PIN, (gpio_num_t)CAN_TX_PIN);
+  CAN0.begin(500000);
   while (true) {
     Serial.print(F("Attempting to connect to OBD2 CAN bus ... "));
     if (!OBD2.begin()) {
@@ -298,7 +300,7 @@ void buzzerTask (void * parameter) {
 void obdReaderTask (void * parameter) {
   for (;;) {
   delay(10);
-  //obdRead(); //read one OBD PID
+  obdRead(); //read one OBD PID
   //obdClioRead(); //read one OBD PID  
   } //end loop
 }; //end OBD Reader task
@@ -362,9 +364,6 @@ void setup() {
   //lvgl example end
   ui_init();
 
-  xTaskCreatePinnedToCore(buzzerTask, "Buzzer Task",    8000,      NULL,    2,    &Task1_buzzer,    0);
-  xTaskCreatePinnedToCore(obdReaderTask, "OBD Reader Task",    8000,      NULL,    2,    &Task2_obdReader,    0);
-  xTaskCreatePinnedToCore(brightnessTask, "Brightness Task",    8000,      NULL,    2,    &Task3_brightness,    1);
 
   Wire.setPins(sda_pin, scl_pin); // Set the I2C pins before begin
   Wire.begin(); // join i2c bus (address optional for master)
@@ -379,7 +378,12 @@ void setup() {
   mpu.setAccelerometerRange(MPU6050_RANGE_2_G);
   mpu.setFilterBandwidth(MPU6050_BAND_21_HZ);
 
-  //obdCanInit();
+  obdCanInit();
+
+  //создание таск в самом конец, они мешали инициализации КАН
+  xTaskCreatePinnedToCore(buzzerTask, "Buzzer Task",    8000,      NULL,    2,    &Task1_buzzer,    0);
+  xTaskCreatePinnedToCore(obdReaderTask, "OBD Reader Task",    8000,      NULL,    2,    &Task2_obdReader,    0);
+  xTaskCreatePinnedToCore(brightnessTask, "Brightness Task",    8000,      NULL,    2,    &Task3_brightness,    1);
 };
 //end setup
 
@@ -652,10 +656,6 @@ void tftPrintGear () {
 
 
 
-//Вынести считывание обд в отдельную таску
-//Протестировать ускоренное считывание ОБД
-//Починить запуск без консоли
-//на экране РПМ сделать анимацию арка
+
 //Буст - протестировать выдачу данных с обд
 
-//Вывод данных в Рейсхроно по BLE
