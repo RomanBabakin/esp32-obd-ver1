@@ -1,0 +1,16 @@
+{
+  "codename": "Signal_30_Normal",
+  "ttf_path": "/assets/Signal Normal.ttf",
+  "bin_path": "/assets\\ui_font_Signal_30_Normal.bin",
+  "c_path": "/assets\\ui_font_Signal_30_Normal.c",
+  "cfg_path": "/assets\\ui_font_Signal_30_Normal.fcfg",
+  "size": 30,
+  "bpp": 4,
+  "letters": 0,
+  "ranges": [
+    "0x20-0x7f"
+  ],
+  "symbols": "",
+  "customparams": "--no-compress --no-prefilter",
+  "uploaded": false
+}

@@ -1,0 +1,16 @@
+{
+  "codename": "Signal_70_bold",
+  "ttf_path": "/assets/Signal Bold.ttf",
+  "bin_path": "/assets\\ui_font_Signal_70_bold.bin",
+  "c_path": "/assets\\ui_font_Signal_70_bold.c",
+  "cfg_path": "/assets\\ui_font_Signal_70_bold.fcfg",
+  "size": 70,
+  "bpp": 4,
+  "letters": 0,
+  "ranges": [
+    "0x20-0x7f"
+  ],
+  "symbols": "",
+  "customparams": "--no-compress --no-prefilter",
+  "uploaded": false
+}
