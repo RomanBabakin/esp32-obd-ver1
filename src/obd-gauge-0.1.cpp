@@ -15,7 +15,8 @@
 #define CAN_TX_PIN  5
 #define WLED_PIN 48 
 #define LED_COUNT 12 
-Adafruit_NeoPixel strip(LED_COUNT, WLED_PIN, NEO_GRB + NEO_KHZ800);
+// ИЗМЕНЕНО: NEO_RGB обратно на NEO_GRB, так как лента, вероятно, GRB
+Adafruit_NeoPixel strip(LED_COUNT, WLED_PIN, NEO_GRB + NEO_KHZ800); 
 
 static const uint16_t screenWidth  = 240;
 static const uint16_t screenHeight = 280;
@@ -285,13 +286,15 @@ void canConnectionManagerTask(void *pvParameters) {
     for (;;) {
         if (!canConnected) {
             Serial.print(F("Attempting to connect to OBD2 CAN bus ... "));
-            strip.setPixelColor(0, 0, 0, 200); // Синий
+            // Устанавливаем СИНИЙ цвет (R=0, G=0, B=200). Библиотека обработает для GRB.
+            strip.setPixelColor(0, 0, 0, 200); 
             strip.show();
 
             if (OBD2.begin()) { 
                 Serial.println(F("success"));
                 canConnected = true;
-                strip.setPixelColor(0, 200, 0, 0); // Зеленый
+                // Устанавливаем ЗЕЛЕНЫЙ цвет (R=0, G=200, B=0). Библиотека обработает для GRB.
+                strip.setPixelColor(0, 0, 200, 0); 
                 strip.show();
             } else {
                 Serial.println(F("failed! Retrying in 5s..."));
@@ -340,7 +343,6 @@ void calibrateAccelerometer() {
 
   // 2. Предполагаемая поперечная ось сенсора (sY_S, например, ВЛЕВО автомобиля)
   // Мы предполагаем, что ось Y сенсора примерно соответствует автомобильной "влево".
-  // Если это не так, эту "догадку" нужно изменить (например, на (1,0,0) если ось X сенсора = "влево")
   float sY_guess_S[3] = {0.0f, 1.0f, 0.0f}; // Ось Y сенсора
 
   // 3. Продольная ось автомобиля (vX_S, ВПЕРЕД) в координатах сенсора
@@ -351,7 +353,7 @@ void calibrateAccelerometer() {
   // 4. Поперечная ось автомобиля (vY_S, ВЛЕВО) в координатах сенсора
   // vY_S = normalize(vZ_S x vX_S)
   crossProduct(vZ_S, u_vehicle_forward_S, u_vehicle_left_S);
-  normalizeVector(u_vehicle_left_S); // Должен быть уже нормализован, если vZ_S и vX_S ортонормальны
+  normalizeVector(u_vehicle_left_S); 
 
   Serial.println("Калибровка акселерометра завершена.");
   Serial.print("Вектор ВПЕРЕД автомобиля (в коорд. сенсора): Vx="); Serial.print(u_vehicle_forward_S[0]);
@@ -370,7 +372,8 @@ void setup() {
   
   strip.begin(); 
   strip.setBrightness(10);
-  strip.setPixelColor(0, 0, 255, 0); // Красный
+  // Устанавливаем КРАСНЫЙ цвет (R=255, G=0, B=0). Библиотека обработает для GRB.
+  strip.setPixelColor(0, 255, 0, 0); 
   strip.show();
 
   pinMode(button_1_Pin, INPUT_PULLUP);
@@ -526,9 +529,8 @@ void tftPrintCoolantTemp () {
       lv_obj_clear_state(ui_coolantLabel, LV_STATE_USER_3);
       lv_obj_clear_state(ui_coolantRed, LV_STATE_USER_3);
     } else if (115 <= obdCoolantTemp && obdCoolantTemp  < 130) {
-      if (buzzerStatus == 0) {buzzerStatus = 1;}; // Предупреждение ОЖ, если нет других сигналов
-      // if (buzzerStatus == 2) {buzzerStatus = 1;}; // Эта строка была закомментирована в оригинале
-      if (buzzerStatus == 3) {buzzerStatus = 0;}; // Сброс тревоги ОЖ, если температура упала
+      if (buzzerStatus == 0) {buzzerStatus = 1;}; 
+      if (buzzerStatus == 3) {buzzerStatus = 0;}; 
       lv_obj_add_state(ui_coolantTemp, LV_STATE_USER_2);
       lv_obj_add_state(ui_coolantLabel, LV_STATE_USER_2);
       lv_obj_add_state(ui_coolantRed, LV_STATE_USER_2);
@@ -536,7 +538,7 @@ void tftPrintCoolantTemp () {
       lv_obj_clear_state(ui_coolantLabel, LV_STATE_USER_3);
       lv_obj_clear_state(ui_coolantRed, LV_STATE_USER_3);
     } else if (130 <= obdCoolantTemp) {
-      if (buzzerStatus != 4) {buzzerStatus = 3;}; // Тревога ОЖ, если нет тревоги по маслу
+      if (buzzerStatus != 4) {buzzerStatus = 3;}; 
       lv_obj_add_state(ui_coolantTemp, LV_STATE_USER_3);
       lv_obj_add_state(ui_coolantLabel, LV_STATE_USER_3);
       lv_obj_add_state(ui_coolantRed, LV_STATE_USER_3);
@@ -547,7 +549,7 @@ void tftPrintCoolantTemp () {
 // Функция вывода температуры масла с исходной логикой buzzerStatus
 void tftPrintOilTemp () {
     if (obdOilTemp < 110) {
-      if (buzzerStatus == 4) {buzzerStatus = 0;}; // Сброс тревоги масла
+      if (buzzerStatus == 4) {buzzerStatus = 0;}; 
       lv_obj_clear_state(ui_oilTemp, LV_STATE_USER_2);
       lv_obj_clear_state(ui_oilLabel, LV_STATE_USER_2);
       lv_obj_clear_state(ui_oilRed, LV_STATE_USER_2);
@@ -555,9 +557,9 @@ void tftPrintOilTemp () {
       lv_obj_clear_state(ui_oilLabel, LV_STATE_USER_3);
       lv_obj_clear_state(ui_oilRed, LV_STATE_USER_3);
     } else if (110 <= obdOilTemp && obdOilTemp  < 120) {
-      if (buzzerStatus == 0) {buzzerStatus = 2;}; // Предупреждение по маслу
-      if (buzzerStatus == 1) {buzzerStatus = 2;}; // Предупреждение по маслу перекрывает предупреждение ОЖ
-      if (buzzerStatus == 4) {buzzerStatus = 0;}; // Сброс тревоги масла, если температура упала
+      if (buzzerStatus == 0) {buzzerStatus = 2;}; 
+      if (buzzerStatus == 1) {buzzerStatus = 2;}; 
+      if (buzzerStatus == 4) {buzzerStatus = 0;}; 
       lv_obj_add_state(ui_oilTemp, LV_STATE_USER_2);
       lv_obj_add_state(ui_oilLabel, LV_STATE_USER_2);
       lv_obj_add_state(ui_oilRed, LV_STATE_USER_2);
