@@ -13,8 +13,8 @@ void ui_Screen2_screen_init(void)
     lv_obj_set_style_bg_opa(ui_Screen2, 255, LV_PART_MAIN | LV_STATE_DEFAULT);
 
     ui_boostBar = lv_bar_create(ui_Screen2);
-    lv_bar_set_range(ui_boostBar, 0, 1500);
-    lv_bar_set_value(ui_boostBar, 200, LV_ANIM_OFF);
+    lv_bar_set_range(ui_boostBar, 0, 1000);
+    lv_bar_set_value(ui_boostBar, 230, LV_ANIM_OFF);
     lv_bar_set_start_value(ui_boostBar, 0, LV_ANIM_OFF);
     lv_obj_set_width(ui_boostBar, 240);
     lv_obj_set_height(ui_boostBar, 50);
